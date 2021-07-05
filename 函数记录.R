@@ -189,7 +189,7 @@ n[n< -2]=-2
 n[1:4,1:4]
 pheatmap(n,show_rownames = F,show_colnames = F)
 
-#ID转换
+########################ID转换
 BiocManager::install("org.Hs.eg.db")
 library(org.Hs.eg.db)
 #加载失败解决方式
@@ -246,4 +246,58 @@ ggsurvplot(sfit,palette = c('#E7B800','#2E9FDF'),risk.table = T,pval = T,conf.in
 
 
 
+
+########################任意基因任意癌症表达量和临床性状关联
+##网站：http://www.cbioportal.org/
+##选择Ovary/Fallopian Tube-->文章Ovarian Serous Cys....2011 输入感兴趣基因ARHGAP18查询
+##点击Plots-->x轴Clinical Attr/Tumor Stage 2009  y轴mRNA/mRNA.miRNA expression Z-scores(all gene)
+rm(list = ls())
+a=read.table('plot-data-ARHGAP18-TCGA-OV-cbioportal.txt',header = T,sep = '\t',fill = T)
+colnames(a)=c('id','stage','gene','mut','atte')
+dat=a
+library(ggstatsplot)
+ggbetweenstats(data = dat,x=stage,y=gene)
+ggsave('plot-again-ARHGAP18-TCGA-OV-CBIOPORTAL.png')
+
+res.aov=aov(gene~stage,data = dat)
+summary(res.aov)
+TukeyHSD(res.aov)
+
+
+######################################表达矩阵样本的相关性
+rm(list = ls())
+options(stringsAsFactors = F)
+cor(1:10,1:10)
+BiocManager::install('airway')
+library(airway)
+data(airway)
+airway
+exprSet=assay(airway)
+colnames(exprSet)
+cor(exprSet[,1],exprSet[,2])
+cor(exprSet)
+group_list=colData(airway)[,3]
+tmp=data.frame(group=group_list)
+rownames(tmp)=colnames(exprSet)
+pheatmap::pheatmap(cor(exprSet),annotation_col = tmp)
+
+dim(exprSet)
+#去除部分为0的情况
+sum(exprSet[2,]>1)>5
+
+exprSet2=exprSet[apply(exprSet,1,function(x) sum(x>1)>5),]
+dim(exprSet2)
+pheatmap::pheatmap(cor(exprSet2),annotation_col = tmp)
+
+#edgeR::cpm 去除文库大小差异
+exprSet3=log(edgeR::cpm(exprSet2)+1)
+dim(exprSet3)
+#进行筛选mad最大的500个
+
+exprSet4=exprSet3[names(sort(apply(exprSet3, 1, mad),decreasing = T)[1:500]),]
+dim(exprSet4)
+M=cor(log2(exprSet4+1))
+pheatmap::pheatmap(cor(exprSet4))
+pheatmap::pheatmap(M)
+dev.off()
 
